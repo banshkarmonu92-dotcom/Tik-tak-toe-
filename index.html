@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<title>Tic Tac Toe Reward</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Arial}
+body{
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:url("images/background.png") center/cover no-repeat fixed;
+}
+.wrapper{display:flex;flex-direction:column;align-items:center;width:100%;}
+.game-box{
+  width:92vw; max-width:380px;
+  background:rgba(2,6,23,0.88);
+  padding:12px;border-radius:16px;
+  box-shadow:0 0 25px rgba(0,0,0,0.7);
+  color:white; position:relative;
+}
+.top-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+select,button{padding:6px 10px;border-radius:8px;border:none;font-weight:bold;flex:1}
+select{background:white;color:black}
+button{background:#22c55e;cursor:pointer}
+.setting-btn{background:transparent;color:white;font-size:22px;padding:6px 10px;}
+.board{width:100%;aspect-ratio:1;display:grid;gap:6px;position:relative}
+.cell{
+  width:100%;aspect-ratio:1;
+  background:url("images/box.png") center/contain no-repeat;
+  display:flex;justify-content:center;align-items:center;
+  cursor:pointer;
+}
+.cell-inner{width:80%;height:80%;display:flex;justify-content:center;align-items:center;font-size:clamp(18px,5vw,48px)}
+.status{text-align:center;margin-top:8px;font-size:clamp(14px,4vw,20px)}
+#soundBtn{position:fixed;top:10px;right:10px;font-size:28px;background:none;border:none;color:white;cursor:pointer;z-index:1500;}
+#volumeControl{position:fixed;top:60px;right:15px;width:80px;z-index:1500}
+.effect-layer{position:fixed;inset:0;pointer-events:none;z-index:999}
+.flower{position:absolute;top:-30px;font-size:24px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(360deg);opacity:0}}
+.win-box{
+  position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  background:#020617;padding:18px;
+  border-radius:14px;text-align:center;
+  z-index:1001;display:none;
+  width:90vw;max-width:320px;
+}
+#winnerImage img{max-width:120px;display:block;margin:10px auto;}
+#playBtn{
+  margin-top:10px;padding:8px 20px;
+  border:none;border-radius:10px;
+  background:#22c55e;font-weight:bold;
+  width:100%;display:none;
+}
+#customizeModal{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,0.6);
+  display:none;justify-content:center;align-items:center;
+  z-index:1002
+}
+#customizeModal div{
+  background:#020617;padding:18px;
+  border-radius:12px;color:white;
+  width:90%;max-width:280px
+}
+#customizeModal label{display:block;margin:6px 0;font-size:14px}
+.line-img{position:absolute;z-index:20;pointer-events:none;transform-origin:left center;}
+#adBanner{
+  position:fixed;bottom:0;left:0;width:100%;height:50px;background:#111;text-align:center;color:white;line-height:50px;z-index:2000;
+}
+#adInterstitial,#adRewarded{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,0.8);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  color:white;
+  font-size:20px;
+  z-index:4000;
+  display:none;
+  flex-direction:column;
+}
+#adInterstitial button,#adRewarded button{
+  position:absolute;
+  top:10px;
+  right:10px;
+  font-size:24px;
+  background:rgba(0,0,0,0.6);
+  color:white;
+  border:none;
+  border-radius:50%;
+  padding:6px 10px;
+  display:none;
+  cursor:pointer;
+  z-index:5000;
+}
+</style>
+</head>
+<body>
+
+<button id="soundBtn">🔊</button>
+<input type="range" id="volumeControl" min="0" max="1" step="0.01" value="0.5">
+
+<div id="effectLayer" class="effect-layer"></div>
+
+<div id="winBox" class="win-box">
+  <h2 id="winText">Winner 🎉</h2>
+  <div id="winnerImage"></div>
+  <button id="playBtn" onclick="startGame()">Play Again</button>
+</div>
+
+<div id="customizeModal">
+  <div>
+    <label>X <input type="file" id="playerXImage"></label>
+    <label>O <input type="file" id="playerOImage"></label>
+    <label>Box <input type="file" id="boxImage"></label>
+    <label>Board <input type="file" id="boardImage"></label>
+    <label>Line X <input type="file" id="lineXImage"></label>
+    <label>Line O <input type="file" id="lineOImage"></label>
+    <label>Music <input type="file" id="bgMusicFile" accept="audio/*"></label>
+    <button class="play-btn" onclick="saveTokens()">Save</button>
+  </div>
+</div>
+
+<div class="wrapper">
+  <div class="game-box">
+    <div class="top-bar">
+      <select id="size">
+        <option value="3">3×3</option>
+        <option value="4">4×4</option>
+        <option value="5">5×5</option>
+        <option value="6">6×6</option>
+      </select>
+      <select id="mode">
+        <option value="pvp">2 Players</option>
+        <option value="cpu">Vs Computer</option>
+      </select>
+      <button onclick="startGame()">Start</button>
+      <button class="setting-btn" onclick="customizeModal.style.display='flex'; showRewardedAd(()=>{});">⚙️</button>
+    </div>
+    <div id="board" class="board"></div>
+    <div id="status" class="status">Player X Turn</div>
+  </div>
+</div>
+
+<div id="adBanner">Banner Ad Placeholder</div>
+<div id="adInterstitial">Industrial Ad Placeholder
+  <button id="closeInterstitialBtn">❌</button>
+</div>
+<div id="adRewarded">Rewarded Ad Placeholder
+  <button id="closeRewardedBtn">❌</button>
+</div>
+
+<audio id="bgMusic" src="audio/background music.mp3" loop></audio>
+<audio id="winSound" src="audio/surprise sound.mp3"></audio>
+
+<script>
+let size=3, board=[], currentPlayer="X", gameOver=false, winLine=[];
+let playerX='<img src="images/x.png" width="80%">', playerO='<img src="images/o.png" width="80%">';
+let boxImg="images/box.png", boardImg="";
+let uploadedLineX="images/xline.png", uploadedLineO="images/oline.png";
+let mode="pvp", soundOn=true;
+let gamesPlayed=0;
+
+const boardDiv=document.getElementById("board");
+const statusDiv=document.getElementById("status");
+const effectLayer=document.getElementById("effectLayer");
+const winBox=document.getElementById("winBox");
+const winText=document.getElementById("winText");
+const winnerImage=document.getElementById("winnerImage");
+const playBtn=document.getElementById("playBtn");
+const customizeModal=document.getElementById("customizeModal");
+const bgMusic=document.getElementById("bgMusic");
+const winSound=document.getElementById("winSound");
+const soundBtn=document.getElementById("soundBtn");
+const volumeControl=document.getElementById("volumeControl");
+
+const adBanner=document.getElementById("adBanner");
+const adInterstitial=document.getElementById("adInterstitial");
+const adRewarded=document.getElementById("adRewarded");
+const closeInterstitialBtn=document.getElementById("closeInterstitialBtn");
+const closeRewardedBtn=document.getElementById("closeRewardedBtn");
+
+document.getElementById("mode").onchange=e=>mode=e.target.value;
+document.getElementById("size").onchange=e=>{size=parseInt(e.target.value);startGame();};
+volumeControl.oninput=()=>bgMusic.volume=volumeControl.value;
+
+soundBtn.onclick=()=>{
+  soundOn=!soundOn;
+  soundBtn.textContent=soundOn?"🔊":"🔇";
+  if(soundOn) bgMusic.play(); else bgMusic.pause();
+};
+
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden) bgMusic.pause();
+  else if(soundOn) bgMusic.play().catch(()=>{});
+});
+
+function showInterstitialAd(callback){
+  adBanner.style.display="none";
+  adInterstitial.style.display="flex";
+  closeInterstitialBtn.style.display="none";
+  setTimeout(()=>closeInterstitialBtn.style.display="inline-block",3000);
+  closeInterstitialBtn.onclick=()=>{
+    adInterstitial.style.display="none";
+    adBanner.style.display="block";
+    callback();
+  }
+}
+
+function showRewardedAd(callback){
+  adBanner.style.display="none";
+  adRewarded.style.display="flex";
+  closeRewardedBtn.style.display="none";
+  setTimeout(()=>closeRewardedBtn.style.display="inline-block",2000);
+  closeRewardedBtn.onclick=()=>{
+    adRewarded.style.display="none";
+    adBanner.style.display="block";
+    callback();
+  }
+}
+
+function startGame(){
+  board=Array(size*size).fill("");
+  currentPlayer="X";
+  gameOver=false;
+  winLine=[];
+  statusDiv.textContent="Player X Turn";
+  winBox.style.display="none";
+  playBtn.style.display="none";
+  winnerImage.style.display="none";
+  effectLayer.innerHTML="";
+  drawBoard();
+  if(soundOn) bgMusic.play().catch(()=>{});
+}
+
+function drawBoard(){
+  boardDiv.innerHTML="";
+  boardDiv.style.gridTemplateColumns=`repeat(${size},1fr)`;
+  boardDiv.style.background=boardImg?`url(${boardImg}) center/cover no-repeat`:"none";
+  boardDiv.style.opacity=boardImg?0.35:1;
+  board.forEach((v,i)=>{
+    const c=document.createElement("div");
+    c.className="cell";
+    c.style.background=`url(${boxImg}) center/contain no-repeat`;
+    if(v){
+      const inner=document.createElement("div");
+      inner.className="cell-inner";
+      inner.innerHTML=v==="X"?playerX:playerO;
+      c.appendChild(inner);
+    }
+    c.onclick=()=>move(i);
+    boardDiv.appendChild(c);
+  });
+}
+
+function move(i){
+  if(board[i]||gameOver)return;
+  board[i]=currentPlayer;
+  drawBoard();
+  if(checkEnd()) return;
+  currentPlayer=currentPlayer==="X"?"O":"X";
+  statusDiv.textContent=`Player ${currentPlayer} Turn`;
+  if(mode==="cpu" && currentPlayer==="O") setTimeout(computerMove,400);
+}
+
+function computerMove(){
+  let empty=board.map((v,i)=>v===""?i:null).filter(v=>v!==null);
+  if(!empty.length) return;
+  board[empty[Math.floor(Math.random()*empty.length)]]="O";
+  drawBoard();
+  checkEnd();
+  currentPlayer="X";
+  statusDiv.textContent="Player X Turn";
+}
+
+function checkEnd(){
+  const win=checkWin();
+  if(win){
+    gameOver=true;
+    drawBoard();
+    showFlowers();
+    winText.textContent=`Player ${currentPlayer} Wins 🎉`;
+    winnerImage.innerHTML=currentPlayer==="X"?playerX:playerO;
+    drawAnimatedLine(win);
+    setTimeout(()=>{
+      winBox.style.display="block";
+      playBtn.style.display="block";
+      winnerImage.style.display="block";
+    },2000);
+    if(soundOn) winSound.play();
+    gamesPlayed++;
+    if(gamesPlayed%3===0) showInterstitialAd(()=>{});
+    return true;
+  }
+  if(!board.includes("")){
+    statusDiv.textContent="Draw 🤝";
+    gameOver=true;
+    setTimeout(()=>{
+      winBox.style.display="block";
+      playBtn.style.display="block";
+      winnerImage.style.display="none";
+      gamesPlayed++;
+      if(gamesPlayed%3===0) showInterstitialAd(()=>{});
+    },2000);
+    return true;
+  }
+  return false;
+}
+
+function drawAnimatedLine(win){
+  const cellDivs=boardDiv.querySelectorAll(".cell");
+  const first=cellDivs[win[0]].getBoundingClientRect();
+  const last=cellDivs[win[win.length-1]].getBoundingClientRect();
+  const boardRect=boardDiv.getBoundingClientRect();
+  const startX=first.left-boardRect.left + first.width/2;
+  const startY=first.top-boardRect.top + first.height/2;
+  const endX=last.left-boardRect.left + last.width/2;
+  const endY=last.top-boardRect.top + last.height/2;
+  let dx=endX-startX, dy=endY-startY;
+  let length=Math.sqrt(dx*dx+dy*dy);
+  const angle=Math.atan2(dy,dx)*180/Math.PI;
+  const thickness=Math.max(first.width*0.5,40);
+  const img=document.createElement("img");
+  img.className="line-img";
+  img.src=currentPlayer==="X"?uploadedLineX:uploadedLineO;
+  img.style.width="0px";
+  img.style.height=thickness+"px";
+  img.style.left=startX+"px";
+  img.style.top=startY-thickness/2+"px";
+  img.style.transform=`rotate(${angle}deg)`;
+  boardDiv.appendChild(img);
+  let p=0;
+  const step=length/30;
+  const interval=setInterval(()=>{
+    p+=step;
+    img.style.width=p+"px";
+    if(p>=length) clearInterval(interval);
+  },15);
+}
+
+function checkWin(){
+  let lines=[];
+  for(let r=0;r<size;r++)lines.push([...Array(size)].map((_,c)=>r*size+c));
+  for(let c=0;c<size;c++)lines.push([...Array(size)].map((_,r)=>r*size+c));
+  lines.push([...Array(size)].map((_,i)=>i*size+i));
+  lines.push([...Array(size)].map((_,i)=>i*size+(size-1-i)));
+  return lines.find(l=>l.every(i=>board[i]===currentPlayer));
+}
+
+function showFlowers(){
+  for(let i=0;i<30;i++){
+    const f=document.createElement("div");
+    f.className="flower";
+    f.textContent="🌸";
+    f.style.left=Math.random()*100+"vw";
+    f.style.animationDuration=3+Math.random()*2+"s";
+    effectLayer.appendChild(f);
+    setTimeout(()=>f.remove(),5000);
+  }
+}
+
+function saveTokens(){
+  const read=(id,cb)=>{
+    const f=document.getElementById(id).files[0];
+    if(!f){cb(null);return;}
+    const r=new FileReader();
+    r.onload=e=>cb(e.target.result);
+    r.readAsDataURL(f);
+  };
+  read("playerXImage",v=>{ if(v) playerX=`<img src="${v}" width="80%">`; });
+  read("playerOImage",v=>{ if(v) playerO=`<img src="${v}" width="80%">`; });
+  read("boxImage",v=>{ if(v) boxImg=v; });
+  read("boardImage",v=>{ if(v) boardImg=v; });
+  read("lineXImage",v=>{ if(v) uploadedLineX=v; });
+  read("lineOImage",v=>{ if(v) uploadedLineO=v; });
+  const music=document.getElementById("bgMusicFile").files[0];
+  if(music){
+    bgMusic.src=URL.createObjectURL(music);
+    bgMusic.play().catch(()=>{});
+  }
+  customizeModal.style.display="none";
+  drawBoard();
+}
+
+startGame();
+</script>
+</body>
+</html>
